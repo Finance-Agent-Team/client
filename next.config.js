@@ -3,6 +3,7 @@ const nextConfig = {
   experimental: {
     serverActions: true,
   },
+  output: 'standalone',
   images: {
     domains: ["avatars.githubusercontent.com"],
     unoptimized: true,
