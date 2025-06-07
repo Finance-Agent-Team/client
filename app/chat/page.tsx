@@ -19,7 +19,7 @@ export default async function ChatPage() {
     <div className="min-h-screen bg-background">
       <Navbar user={session.user} />
       <main className="container mx-auto px-4 py-6">
-        <ChatInterface />
+        <ChatInterface userId={session.user.id} />
       </main>
     </div>
   )

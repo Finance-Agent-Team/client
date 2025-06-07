@@ -2,19 +2,73 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Send, Upload, Trash2, Bot, User } from "lucide-react"
+import { Send, Upload, Trash2, Bot, User, History } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import type { ChatMessage } from "@/lib/types"
+import type { ChatMessage, ChatHistoryResponse } from "@/lib/types"
 import { PortfolioChart } from "@/components/charts/portfolio-chart"
 
-export default function ChatInterface() {
+interface ChatInterfaceProps {
+  userId: string
+}
+
+export default function ChatInterface({ userId }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  // Fetch chat history on component mount
+  useEffect(() => {
+    const fetchChatHistory = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/chat/history?user_id=${userId}&limit=100`)
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch chat history")
+        }
+
+        const data: ChatHistoryResponse = await response.json()
+        
+        // Map chat history to ChatMessage format
+        const chatMessages: ChatMessage[] = []
+        
+        data.chat_history.forEach((item) => {
+          // Add user message
+          chatMessages.push({
+            id: `${item.id}-user`,
+            type: "user",
+            content: item.message,
+            timestamp: new Date(item.created_at),
+          })
+          
+          // Add AI response with chart data if available
+          chatMessages.push({
+            id: `${item.id}-ai`,
+            type: "ai",
+            content: item.response,
+            charts: item.has_chart && item.chart ? [item.chart] : undefined,
+            timestamp: new Date(item.created_at),
+          })
+        })
+        
+        // Reverse to show oldest messages first
+        setMessages(chatMessages.reverse())
+        
+      } catch (error) {
+        console.error("Failed to fetch chat history:", error)
+        toast({
+          title: "Warning",
+          description: "Failed to load chat history. Starting with a fresh conversation.",
+          variant: "default",
+        })
+      }
+    }
+    
+    fetchChatHistory()
+  }, [userId])
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return
@@ -36,7 +90,10 @@ export default function ChatInterface() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: inputMessage }),
+        body: JSON.stringify({ 
+          message: inputMessage, 
+          userId: userId 
+        }),
       })
 
       if (!response.ok) {
@@ -52,7 +109,7 @@ export default function ChatInterface() {
         charts: data.charts,
         timestamp: new Date(),
       }
-
+      
       setMessages((prev) => [...prev, aiMessage])
     } catch (error) {
       toast({
@@ -79,9 +136,9 @@ export default function ChatInterface() {
       sendMessage()
     }
   }
-
+  console.log(messages)
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">AI Portfolio Assistant</h1>
         <div className="flex gap-2">
@@ -95,88 +152,87 @@ export default function ChatInterface() {
           </Button>
         </div>
       </div>
-
-      <Card className="min-h-[500px] flex flex-col">
-        <CardContent className="flex-1 p-6">
-          <div className="space-y-4 mb-4 max-h-[400px] overflow-y-auto">
-            {messages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-12">
-                <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Start a conversation about your portfolio performance</p>
-                <p className="text-sm mt-2">Try asking: "Show me a sector relative rotation analysis" or "How did my portfolio perform compared to the S&P 500?"</p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div key={message.id} className="space-y-3">
-                  <div className={`flex gap-3 ${message.type === "user" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`flex gap-3 max-w-[80%] ${message.type === "user" ? "flex-row-reverse" : "flex-row"}`}
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          message.type === "user" ? "bg-primary" : "bg-secondary"
-                        }`}
-                      >
-                        {message.type === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+          <Card className="min-h-[500px] flex flex-col">
+            <CardContent className="flex-1 p-6">
+              <div className="space-y-4 mb-4 max-h-[400px] overflow-y-auto">
+                {messages.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-12">
+                    <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Start a conversation about your portfolio performance</p>
+                    <p className="text-sm mt-2">Try asking: "Show me a sector relative rotation analysis" or "How did my portfolio perform compared to the S&P 500?"</p>
+                  </div>
+                ) : (
+                  messages.map((message) => (
+                    <div key={message.id} className="space-y-3">
+                      <div className={`flex gap-3 ${message.type === "user" ? "justify-end" : "justify-start"}`}>
+                        <div
+                          className={`flex gap-3 max-w-[80%] ${message.type === "user" ? "flex-row-reverse" : "flex-row"}`}
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              message.type === "user" ? "bg-primary" : "bg-secondary"
+                            }`}
+                          >
+                            {message.type === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                          </div>
+                          <div
+                            className={`rounded-lg p-3 ${
+                              message.type === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                            }`}
+                          >
+                            <p className="text-sm">{message.content}</p>
+                            <p className="text-xs opacity-70 mt-1">{message.timestamp.toLocaleTimeString()}</p>
+                          </div>
+                        </div>
                       </div>
-                      <div
-                        className={`rounded-lg p-3 ${
-                          message.type === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-                        }`}
-                      >
-                        <p className="text-sm">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">{message.timestamp.toLocaleTimeString()}</p>
+
+                      {message.charts &&
+                        message.charts.map((chart, index) => (
+                          <div key={index} className="ml-11">
+                            <PortfolioChart chart={chart} />
+                          </div>
+                        ))}
+                    </div>
+                  ))
+                )}
+
+                {isLoading && (
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                    <div className="bg-muted rounded-lg p-3">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
+                        <div
+                          className="w-2 h-2 bg-current rounded-full animate-bounce"
+                          style={{ animationDelay: "0.1s" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-current rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
                       </div>
                     </div>
                   </div>
-
-                  {message.charts &&
-                    message.charts.map((chart, index) => (
-                      <div key={index} className="ml-11">
-                        <PortfolioChart chart={chart} />
-                      </div>
-                    ))}
-                </div>
-              ))
-            )}
-
-            {isLoading && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="bg-muted rounded-lg p-3">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
-                    <div
-                      className="w-2 h-2 bg-current rounded-full animate-bounce"
-                      style={{ animationDelay: "0.1s" }}
-                    ></div>
-                    <div
-                      className="w-2 h-2 bg-current rounded-full animate-bounce"
-                      style={{ animationDelay: "0.2s" }}
-                    ></div>
-                  </div>
-                </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="flex gap-2">
-            <Input
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask about portfolio performance, sector analysis, or request a relative rotation graph..."
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <Button onClick={sendMessage} disabled={isLoading || !inputMessage.trim()}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              <div className="flex gap-2">
+                <Input
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask about portfolio performance, sector analysis, or request a relative rotation graph..."
+                  disabled={isLoading}
+                  className="flex-1"
+                />
+                <Button onClick={sendMessage} disabled={isLoading || !inputMessage.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
     </div>
   )
 }

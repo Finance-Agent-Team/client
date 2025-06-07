@@ -6,6 +6,21 @@ export interface ChatMessage {
   timestamp: Date
 }
 
+// New types for chat history API
+export interface ChatHistoryItem {
+  id: string
+  message: string
+  response: string
+  has_chart: boolean
+  chart: ChartData | null
+  created_at: string
+}
+
+export interface ChatHistoryResponse {
+  status: string
+  chat_history: ChatHistoryItem[]
+}
+
 export interface RelativeRotationData {
   name: string
   relativeStrength: number

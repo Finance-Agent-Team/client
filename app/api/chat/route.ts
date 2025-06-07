@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
 import type { RelativeRotationData } from "@/lib/types"
 
-// Mock data for demonstration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+// Mock data for fallback
 const mockResponses = [
   {
     response:
@@ -107,27 +109,60 @@ const mockResponses = [
   },
 ]
 
-export async function POST(request: Request) {
+async function callExternalAPI(message: string, userId?: string) {
   try {
-    const { message } = await request.json()
+    const response = await fetch(`${API_BASE_URL}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        message,
+        user_id: userId 
+      }),
+    })
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Check if user is asking for relative rotation or sector analysis
-    if (message.toLowerCase().includes("relative") || 
-        message.toLowerCase().includes("rotation") ||
-        message.toLowerCase().includes("sector") ||
-        message.toLowerCase().includes("quadrant")) {
-      // Return the relative rotation graph response
-      return NextResponse.json(mockResponses[2])
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.statusText}`)
     }
 
-    // Return a random mock response for other queries
-    const randomResponse = mockResponses[Math.floor(Math.random() * 2)]
-
-    return NextResponse.json(randomResponse)
+    return await response.json()
   } catch (error) {
+    console.error('External API call failed:', error)
+    throw error
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const { message, userId } = await request.json()
+
+    // Try to call the external API first
+    try {
+      const apiResponse = await callExternalAPI(message, userId)
+      return NextResponse.json(apiResponse)
+    } catch (apiError) {
+      console.warn('External API failed, falling back to mock response:', apiError)
+      
+      // Fallback to mock responses
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      // Check if user is asking for relative rotation or sector analysis
+      if (message.toLowerCase().includes("relative") || 
+          message.toLowerCase().includes("rotation") ||
+          message.toLowerCase().includes("sector") ||
+          message.toLowerCase().includes("quadrant")) {
+        // Return the relative rotation graph response
+        return NextResponse.json(mockResponses[2])
+      }
+
+      // Return a random mock response for other queries
+      const randomResponse = mockResponses[Math.floor(Math.random() * 2)]
+      return NextResponse.json(randomResponse)
+    }
+  } catch (error) {
+    console.error('Chat API error:', error)
     return NextResponse.json({ error: "Failed to process chat message" }, { status: 500 })
   }
 }
