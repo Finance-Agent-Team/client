@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverActions: true,
-  },
-  output: 'standalone',
+  output: "standalone",
   images: {
     domains: ["avatars.githubusercontent.com"],
     unoptimized: true,
@@ -14,6 +11,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
