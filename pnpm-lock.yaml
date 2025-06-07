@@ -122,6 +122,9 @@ importers:
       lucide-react:
         specifier: ^0.454.0
         version: 0.454.0(react@18.3.1)
+      my-v0-project:
+        specifier: 'link:'
+        version: 'link:'
       next:
         specifier: 14.2.16
         version: 14.2.16(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
